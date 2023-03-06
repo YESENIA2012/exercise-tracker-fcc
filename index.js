@@ -34,7 +34,6 @@ app.post("/api/users/:_id/exercises", (req, res, next) => {
   const durationExercise = obj.duration;
   const descriptionExercise = obj.description;
   let time = null;
-  let countExercises = 0;
 
   if (dateExercises == "") {
     time = new Date().toDateString();
@@ -58,23 +57,18 @@ app.post("/api/users/:_id/exercises", (req, res, next) => {
     date: time,
   };
 
-  const logsArrayExerciseUser = {
-    userName: userName,
-    count: countExercises,
-    _id: obj[":_id"],
-    log: [],
-  };
+  if (!logsUsers[userId]) {
+    logsUsers.push({
+      userName: userName,
+      count: 1,
+      _id: obj[":_id"],
+      log: [objExercise],
+    });
+  } else {
+    logsUsers[userId].log.push(objExercise);
+    logsUsers[userId].count = logsUsers[userId].log.length;
+  }
 
-  if (!logsArrayExerciseUser[userId - 1]) {
-    countExercises++;
-    logsArrayExerciseUser.count = countExercises;
-    logsArrayExerciseUser.log.push(objExercise);
-    logsUsers.push(logsArrayExerciseUser);
-    console.log(logsUsers);
-  } /* else {
-    count++;
-    logsUsers[userId - 1].log.push(objExercise);
-  } */
   res.redirect("/api/users/:_id/exercises");
   next();
 });
