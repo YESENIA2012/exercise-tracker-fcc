@@ -120,7 +120,27 @@ mongoose
           return res.status(404).json({ message: "User not found" });
         }
 
-        const exercisesUser = await Exercise.find({ userId });
+        let query = { userId: userId };
+
+        if (fromDate) {
+          query.date = { $gte: fromDate };
+        }
+
+        if (toDate) {
+          if (!query.date) {
+            query.date = {};
+          }
+
+          query.date.$lte = toDate;
+        }
+
+        let exercisesUser = Exercise.find(query);
+
+        if (limit) {
+          exercisesUser = exercisesUser.limit(limit);
+        }
+
+        exercisesUser = await exercisesUser.exec();
 
         const log = exercisesUser.map((exercise) => ({
           description: exercise.description,
