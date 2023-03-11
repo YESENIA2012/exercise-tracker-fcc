@@ -3,7 +3,6 @@ const app = express();
 const cors = require("cors");
 require("dotenv").config();
 const mongoose = require("mongoose");
-const ObjectId = mongoose.Types.ObjectId;
 
 app.use(cors());
 app.use(express.static("public"));
@@ -36,70 +35,114 @@ mongoose
       description: String,
       duration: Number,
       date: String,
-      idUser: String,
+      userId: String,
     });
 
     const Exercise = mongoose.model("Exercise", exerciseSchema);
 
-    app.post("/api/users", async (req, res, next) => {
+    app.post("/api/users", async (req, res) => {
       const username = req.body.username;
-      const userFound = await User.findOne({ username });
+      try {
+        const userFound = await User.findOne({ username });
+        if (userFound) {
+          res.json(userFound);
+        }
 
-      if (userFound) {
-        res.json(userFound);
+        const user = await User.create({
+          username,
+        });
+
+        res.json(user);
+      } catch (error) {
+        console.log(error);
+        res.status(500).send("Server Error");
       }
-
-      const user = await User.create({
-        username,
-      });
-
-      res.json(user);
-      next();
     });
 
     app.get("/api/users", async (req, res) => {
-      const users = await User.find();
-      res.send(users);
+      try {
+        const users = await User.find();
+        res.json(users);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send("Server Error");
+      }
     });
 
-    app.post("/api/users/:_id/exercises", async (req, res, next) => {
-      const obj = req.body;
-      const userId = obj[":_id"];
-      const foundIdUser = await User.findById(ObjectId(userId));
-      const dateExercises = obj.date;
-      const durationExercise = obj.duration;
-      const descriptionExercise = obj.description;
-      let time = null;
-
-      if (dateExercises == "") {
+    app.post("/api/users/:_id/exercises", async (req, res) => {
+      const userId = req.params._id;
+      const date = req.body.date;
+      const duration = req.body.duration;
+      const description = req.body.description;
+      let time;
+      if (date == "") {
         time = new Date().toDateString();
       } else {
-        time = new Date(dateExercises).toDateString();
+        time = new Date(date).toDateString();
       }
 
-      if (!foundIdUser) {
-        res.json({ message: "User not found" });
+      try {
+        const foundIdUser = await User.findById(userId);
+        if (!foundIdUser) {
+          return res.status(500).send({ message: "User not found" });
+        }
+        await Exercise.create({
+          username: foundIdUser.username,
+          description: description,
+          duration: duration,
+          date: time,
+          userId,
+        });
+
+        res.send({
+          username: foundIdUser.username,
+          description: description,
+          duration: duration,
+          date: time,
+          _id: userId,
+        });
+      } catch (error) {
+        console.log("este es el error 1", error);
+        res.status(500).send("Server Error");
       }
+    });
 
-      const exercise = await Exercise.create({
-        username: foundIdUser.username,
-        description: descriptionExercise,
-        duration: durationExercise,
-        date: time,
-        userId: ObjectId(userId),
-      });
+    app.get("/api/users/:_id/logs", async (req, res) => {
+      const userId = req.params._id;
+      const fromDate = req.query.from;
+      const toDate = req.query.to;
+      const limit = parseInt(req.query.limit);
 
-      res.send({
-        username: foundIdUser.username,
-        _id: userId,
-        description: descriptionExercise,
-        duration: durationExercise,
-        date: time,
-      });
+      try {
+        const foundIdUser = await User.findById(userId);
+
+        if (!foundIdUser) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        const exercisesUser = await Exercise.find({ userId });
+
+        const log = exercisesUser.map((exercise) => ({
+          description: exercise.description,
+          duration: exercise.duration,
+          date: exercise.date,
+        }));
+
+        res.json({
+          username: foundIdUser.username,
+          count: exercisesUser.length,
+          _id: userId,
+          log: log,
+        });
+      } catch (error) {
+        console.log("este es el error 2", error);
+        res.status(500).send("Server Error");
+      }
     });
   })
   .catch((error) => {
     console.log("error", error);
+    res.status(500).send("Server Error");
   });
 
 const listener = app.listen(process.env.PORT || 3000, () => {
