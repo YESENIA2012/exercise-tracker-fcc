@@ -71,14 +71,14 @@ mongoose
 
     app.post("/api/users/:_id/exercises", async (req, res) => {
       const userId = req.params._id;
-      const date = req.body.date;
-      const duration = req.body.duration;
+      let date = req.body.date;
+      const duration = parseInt(req.body.duration);
       const description = req.body.description;
-      let time;
-      if (date == "") {
-        time = new Date().toDateString();
+
+      if (date === "" || date === undefined) {
+        date = new Date().toDateString();
       } else {
-        time = new Date(date).toDateString();
+        date = new Date(date).toDateString();
       }
 
       try {
@@ -86,21 +86,24 @@ mongoose
         if (!foundIdUser) {
           return res.status(500).send({ message: "User not found" });
         }
+
         await Exercise.create({
           username: foundIdUser.username,
           description: description,
           duration: duration,
-          date: time,
+          date: date,
           userId,
         });
 
-        res.send({
-          username: foundIdUser.username,
-          description: description,
-          duration: duration,
-          date: time,
+        const userObjData = {
           _id: userId,
-        });
+          username: foundIdUser.username,
+          date: date,
+          duration: duration,
+          description: description,
+        };
+
+        res.json(userObjData);
       } catch (error) {
         console.log("este es el error 1", error);
         res.status(500).send("Server Error");
@@ -109,8 +112,8 @@ mongoose
 
     app.get("/api/users/:_id/logs", async (req, res) => {
       const userId = req.params._id;
-      const fromDate = req.query.from;
-      const toDate = req.query.to;
+      const fromDate = new Date(req.query.from).toDateString();
+      const toDate = new Date(req.query.from).toDateString();
       const limit = parseInt(req.query.limit);
 
       try {
@@ -121,18 +124,6 @@ mongoose
         }
 
         let query = { userId: userId };
-
-        if (fromDate) {
-          query.date = { $gte: fromDate };
-        }
-
-        if (toDate) {
-          if (!query.date) {
-            query.date = {};
-          }
-
-          query.date.$lte = toDate;
-        }
 
         let exercisesUser = Exercise.find(query);
 
@@ -145,13 +136,13 @@ mongoose
         const log = exercisesUser.map((exercise) => ({
           description: exercise.description,
           duration: exercise.duration,
-          date: exercise.date,
+          date: new Date(exercise.date).toDateString(),
         }));
 
-        res.json({
+        res.send({
+          _id: userId,
           username: foundIdUser.username,
           count: exercisesUser.length,
-          _id: userId,
           log: log,
         });
       } catch (error) {
